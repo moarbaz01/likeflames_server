@@ -1,0 +1,27 @@
+{
+  "name": "likeflames",
+  "version": "1.0.0",
+  "description": "This is a social media application that has all functionalities which a social media application has.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js"
+  },
+  "keywords": [
+    "socialmedia",
+    "mern",
+    "web_development"
+  ],
+  "author": "Mohammed Arbaz",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cloudinary": "^2.2.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.0",
+    "nodemailer": "^6.9.13",
+    "nodemon": "^3.1.0",
+    "socket.io": "^4.7.5"
+  }
+}
