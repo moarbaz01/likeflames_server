@@ -26,6 +26,10 @@ const userSchema = new mongoose.Schema(
     profilePicture: {
       type: String,
     },
+    accessToken: {
+      type: String,
+      unique: true,
+    },
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,
