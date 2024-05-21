@@ -14,10 +14,13 @@ const postSchema = new mongoose.Schema({
             type: String
         }
     ],
+    postType: {
+        type: String,
+        enum: ["reel", "post"]
+    },
     fileType: {
         type: String,
-        enum: ['image', 'video'],
-        required: true
+        enum: ['image', 'video']
     },
     tags: [
         {
@@ -56,7 +59,8 @@ const postSchema = new mongoose.Schema({
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
         }
-    ],
+    ]
+
 
 }, { timestamps: true });
 
