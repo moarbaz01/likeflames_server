@@ -1,4 +1,4 @@
-const HttpStatusCodes = {
+const statusCodes = {
     OK: 200,
     CREATED: 201,
     ACCEPTED: 202,
@@ -16,4 +16,4 @@ const HttpStatusCodes = {
     GATEWAY_TIMEOUT: 504
 };
 
-module.exports = HttpStatusCodes;
+module.exports = statusCodes;

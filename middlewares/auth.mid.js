@@ -1,5 +1,3 @@
-const bcrypt = require("bcrypt");
-const User = require("../models/user.schema");
 const jwt = require("jsonwebtoken");
 const statusCodes = require("../services/status");
 const { sendResponse } = require("../services/handlingResponse");
@@ -7,7 +5,7 @@ const { sendResponse } = require("../services/handlingResponse");
 exports.verifyUser = async (req, res, next) => {
   try {
     const token =
-      req.cookies.token || req.headers?.Authorization.replace("Bearer ", "");
+      req.cookies.token || req.headers.authorization.replace("Bearer ", "");
 
     if (!token) {
       res
@@ -33,7 +31,7 @@ exports.verifyUser = async (req, res, next) => {
 
 exports.verifyRole = async (req, res, next) => {
   try {
-    const role = req.user;
+    const { role } = req.user;
     if (role !== "admin") {
       res
         .status(statusCodes.UNAUTHORIZED)

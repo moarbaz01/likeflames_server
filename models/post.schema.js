@@ -1,70 +1,74 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
+const uploadToCloudinary = require("../utils/uploadMedia");
 
-const postSchema = new mongoose.Schema({
+const postSchema = new mongoose.Schema(
+  {
     title: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     description: {
-        type: String,
-        required: true
+      type: String,
+      required: true,
     },
     files: [
-        {
-            type: String
-        }
+      {
+        type: String,
+      },
     ],
     postType: {
-        type: String,
-        enum: ["reel", "post"]
+      type: String,
+      enum: ["reel", "post"],
     },
     fileType: {
-        type: String,
-        enum: ['image', 'video']
+      type: String,
+      enum: ["image", "video"],
     },
     tags: [
-        {
-            type: String
-        }
+      {
+        type: String,
+      },
     ],
     author: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
     likes: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        }
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
     ],
     comments: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Comment'
-        }
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Comment",
+      },
     ],
     privacy: {
-        type: String,
-        enum: ['public', 'private', 'suspend'],
-        default: 'public'
+      type: String,
+      enum: ["public", "private", "suspend"],
+      default: "public",
     },
     shares: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        }
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
     ],
     views: [
-        {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User'
-        }
-    ]
-
-
-}, { timestamps: true });
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+  },
+  { timestamps: true }
+);
 
 // Methods
+postSchema.methods.uploadPostFileToCloudinary = async (files) => {
+  return data;
+};
 
-module.exports = mongoose.model('Post', postSchema);
-
+module.exports = mongoose.model("Post", postSchema);

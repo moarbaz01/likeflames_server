@@ -106,15 +106,15 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    resetToken: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
 
-userSchema.pre("save", async function (next) {
-  const bcrypt = require("bcrypt");
-  this.password = await bcrypt.hash(this.password, 10);
-  next();
-});
+userSchema.index({ resetToken: 1 }, { expireAfterSeconds: 5 * 60 * 1000 });
 
 // Methods
 userSchema.methods.comparePassword = async function (password) {
