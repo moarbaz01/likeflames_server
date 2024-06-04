@@ -1,7 +1,7 @@
 const User = require("../models/user.schema");
 const Post = require("../models/post.schema");
 const Comment = require("../models/comment.schema");
-const statusCodes = require("../services/status");
+const statusCodes = require("../services/statusCodes");
 const { sendResponse } = require("../services/handlingResponse");
 const { uploadToCloudinary, deleteFileByUrl } = require("../utils/uploadMedia");
 

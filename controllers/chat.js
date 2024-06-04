@@ -1,7 +1,7 @@
 const Chat = require("../models/chat.schema");
 const User = require("../models/user.schema");
 const { sendResponse } = require("../services/handlingResponse");
-const statusCodes = require("../services/status");
+const statusCodes = require("../services/statusCodes");
 
 exports.send = async (req, res) => {
   try {

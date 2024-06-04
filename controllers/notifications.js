@@ -1,6 +1,6 @@
 const Notifications = require("../models/notifications.schema");
-const User = require("../models/user");
-const statusCodes = require("../services/status");
+const User = require("../models/user.schema");
+const statusCodes = require("../services/statusCodes");
 const { sendResponse } = require("../services/handlingResponse");
 
 exports.create = async (req, res) => {

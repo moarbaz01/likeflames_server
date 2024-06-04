@@ -1,8 +1,8 @@
 const Comment = require("../models/comment.schema");
 const User = require("../models/user.schema");
 const Post = require("../models/post.schema");
-const statusCodes = require("../utils/statusCodes");
-const sendResponse = require("../utils/sendResponse");
+const statusCodes = require("../services/statusCodes");
+const sendResponse = require("../services/handlingResponse");
 
 exports.create = async (req, res) => {
   try {

@@ -1,11 +1,12 @@
 const User = require("../models/user.schema");
 const jwt = require("jsonwebtoken");
-const statusCodes = require("../services/status");
+const statusCodes = require("../services/statusCodes");
 const { sendResponse } = require("../services/handlingResponse");
 const fs = require("fs");
 const { uploadToCloudinary } = require("../utils/uploadMedia");
 const bcrypt = require("bcrypt");
 const { sendEmail } = require("../utils/mailSend");
+const Otp = require("../models/otp.schema");
 
 const generateAccessToken = (payload) => {
   const token = jwt.sign(payload, process.env.JWT_SECRET);
@@ -43,11 +44,11 @@ exports.sendOTP = async (req, res) => {
         lowerCaseAlphabets: false,
         specialChars: false,
       });
-      checkOTP = await OTP.findOne({ otp: result });
+      checkOTP = await Otp.findOne({ otp: result });
     } while (checkOTP);
 
     // Now send this 4 DIGIT OTP to the user email
-    const saveOTP = await OTP.create({
+    await Otp.create({
       email,
       otp: result,
     });
@@ -57,13 +58,7 @@ exports.sendOTP = async (req, res) => {
     const html = `<h3>Your OTP for registration is ${result}
     </h3>
     <p>Please do not share this OTP with anyone.</p>`;
-    await sendMail(email, subject, html);
-
-    res.status(200).json({
-      success: true,
-      message: "OTP Successfully sent to the user",
-      result,
-    });
+    await sendEmail(email, subject, html);
 
     res.status(200).json({
       success: true,
@@ -82,11 +77,11 @@ exports.sendOTP = async (req, res) => {
 // signup
 exports.signup = async (req, res) => {
   try {
-    const { name, username, password, email } = req.body;
+    const { name, username, password, email, otp } = req.body;
     const profilePicture = req.file;
 
     // Validation
-    if (!email || !password || !username || !name || !profilePicture) {
+    if (!email || !password || !username || !name || !profilePicture || !otp) {
       return res
         .status(statusCodes.BAD_REQUEST)
         .json(sendResponse(false, "ALL FIELDS ARE MENDENTORY"));
@@ -109,6 +104,21 @@ exports.signup = async (req, res) => {
       }
     }
 
+    const recentOtp = await Otp.findOne({ email })
+      .sort({ createdAt: -1 })
+      .limit(1);
+
+    if (!recentOtp) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "SEND OTP FIRST"));
+    }
+
+    if (otp !== recentOtp) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "OTP NOT MATCHED"));
+    }
     let profilePictureURL;
     if (profilePicture) {
       const image = await uploadToCloudinary(profilePicture);
@@ -125,6 +135,8 @@ exports.signup = async (req, res) => {
       email,
       profilePicture: profilePictureURL,
     });
+
+    await Otp.deleteMany({ email });
 
     res.json({ success: true, user });
   } catch (error) {

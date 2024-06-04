@@ -1,5 +1,5 @@
 const jwt = require("jsonwebtoken");
-const statusCodes = require("../services/status");
+const statusCodes = require("../services/statusCodes");
 const { sendResponse } = require("../services/handlingResponse");
 
 exports.verifyUser = async (req, res, next) => {
