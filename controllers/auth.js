@@ -5,8 +5,12 @@ const { sendResponse } = require("../services/handlingResponse");
 const fs = require("fs");
 const { uploadToCloudinary } = require("../utils/uploadMedia");
 const bcrypt = require("bcrypt");
+const otpGenerator = require("otp-generator");
 const { sendEmail } = require("../utils/mailSend");
 const Otp = require("../models/otp.schema");
+const ResetToken = require("../models/reset_token.schema");
+const crypto = require("crypto");
+const Notifications = require("../models/notifications.schema");
 
 const generateAccessToken = (payload) => {
   const token = jwt.sign(payload, process.env.JWT_SECRET);
@@ -50,7 +54,7 @@ exports.sendOTP = async (req, res) => {
     // Now send this 4 DIGIT OTP to the user email
     await Otp.create({
       email,
-      otp: result,
+      otp: parseInt(result),
     });
 
     // Send otp email
@@ -63,13 +67,13 @@ exports.sendOTP = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "OTP Successfully sent to the user",
-      result,
+      otp: parseInt(result),
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: "Error in sending otp to the user email",
-      error: error.message,
+      error: error,
     });
   }
 };
@@ -78,10 +82,9 @@ exports.sendOTP = async (req, res) => {
 exports.signup = async (req, res) => {
   try {
     const { name, username, password, email, otp } = req.body;
-    const profilePicture = req.file;
 
     // Validation
-    if (!email || !password || !username || !name || !profilePicture || !otp) {
+    if (!email || !password || !username || !name || !otp) {
       return res
         .status(statusCodes.BAD_REQUEST)
         .json(sendResponse(false, "ALL FIELDS ARE MENDENTORY"));
@@ -114,14 +117,15 @@ exports.signup = async (req, res) => {
         .json(sendResponse(false, "SEND OTP FIRST"));
     }
 
-    if (otp !== recentOtp) {
+    console.log("My otp : ", otp, "DB OTP :", recentOtp);
+    if (otp !== recentOtp.otp) {
       return res
         .status(statusCodes.BAD_REQUEST)
         .json(sendResponse(false, "OTP NOT MATCHED"));
     }
     let profilePictureURL;
-    if (profilePicture) {
-      const image = await uploadToCloudinary(profilePicture);
+    if (req.file) {
+      const image = await uploadToCloudinary(req.file);
       profilePictureURL = image.secure_url;
       fs.unlinkSync(req.file.path);
     }
@@ -138,7 +142,7 @@ exports.signup = async (req, res) => {
 
     await Otp.deleteMany({ email });
 
-    res.json({ success: true, user });
+    res.json(sendResponse(true, "SUCCESSFULLY REGISTERED", user, "user"));
   } catch (error) {
     res
       .status(statusCodes.INTERNAL_SERVER_ERROR)
@@ -180,9 +184,11 @@ exports.login = async (req, res) => {
 
     const token = generateAccessToken(payload);
     user.accessToken = token;
+    await user.save();
+
     res
       .cookie("token", token, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true })
-      .json(sendResponse(true, "SUCCESSFULLY LOGGED IN", user));
+      .json(sendResponse(true, "SUCCESSFULLY LOGGED IN", user, "user"));
   } catch (error) {
     console.log(error);
     res
@@ -196,7 +202,6 @@ exports.logout = async (req, res) => {
   try {
     const token =
       req.headers.authorization?.replace("Bearer ", "") || req.cookies.token;
-    console.log(token);
 
     if (!token) {
       res
@@ -242,7 +247,7 @@ exports.fetchUser = async (req, res) => {
       res.status(statusCodes.NOT_FOUND).json(false, "USER NOT FOUND");
     }
 
-    res.json(sendResponse(true, "USER SUCCESSFULLY FETCHED", user));
+    res.json(sendResponse(true, "USER SUCCESSFULLY FETCHED", user, "user"));
   } catch (error) {
     res.json(sendResponse(false, error.message));
   }
@@ -256,7 +261,7 @@ exports.fetchUsers = async (req, res) => {
       res.status(statusCodes.NOT_FOUND).json(false, "USERS NOT FOUND");
     }
 
-    res.json(sendResponse(true, "USERS SUCCESSFULLY FETCHED", users));
+    res.json(sendResponse(true, "USERS SUCCESSFULLY FETCHED", users, "users"));
   } catch (error) {
     res.json(sendResponse(false, error.message));
   }
@@ -295,9 +300,16 @@ exports.changePassword = async (req, res) => {
     // Compare password
     const comparePassword = await user.comparePassword(oldPassword);
     if (!comparePassword) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "OLD PASSWORD NOT MATCHED"));
+    }
+
+    // If New Password same as previous
+    if (oldPassword === newPassword) {
       return res.status(500).json({
         success: false,
-        message: "PASSWORD NOT MATCHED",
+        message: "NEW PASSWORD SHOULD NOT BE SAME AS OLD PASSWORD",
       });
     }
 
@@ -337,7 +349,7 @@ exports.generateResetToken = async (req, res) => {
     }
 
     // CHECK USER EXISTENCE
-    const user = await User.findOne({ email: email });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(500).json({
         success: false,
@@ -347,13 +359,19 @@ exports.generateResetToken = async (req, res) => {
 
     // GENERATE A TOKEN
     const token = crypto.randomBytes(20).toString("hex");
-    user.resetToken = token;
-
     // CREATE A LINK FOR USER
-    const link = `http://localhost:5173/resetPassword/ID${user._id}/${token}`;
-
+    const link = `http://localhost:5173/resetPassword?id=${user._id}&token=${token}`;
     // SEND EMAIL TO THE USER
-    await sendEmail(email, `<a href="${link}">CLICK TO THE LINK</a>`);
+    await sendEmail(
+      email,
+      "RESET PASSWORD",
+      `<a href="${link}">CLICK TO THE LINK</a>`
+    );
+
+    await ResetToken.create({
+      email,
+      token,
+    });
 
     res.status(200).json({
       success: true,
@@ -363,6 +381,7 @@ exports.generateResetToken = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "ERROR IN GENERATE LINK",
+      error: error.message,
     });
   }
 };
@@ -371,9 +390,9 @@ exports.generateResetToken = async (req, res) => {
 exports.resetPassword = async (req, res) => {
   try {
     // Fetch Data
-    const { token, userId, newPassword, confirmPassword } = req.body;
+    const { token, id, newPassword, confirmPassword } = req.body;
 
-    if (!token || !userId || !newPassword || !confirmPassword) {
+    if (!newPassword || !confirmPassword) {
       return res.status(500).json({
         success: false,
         message: "ALL FIELDS ARE MENDANTORY",
@@ -388,37 +407,40 @@ exports.resetPassword = async (req, res) => {
     }
 
     // Check is user available or not
-    const existUser = await User.findOne({ _id: userId });
-    if (!existUser) {
+    const user = await User.findById(id);
+    if (!user) {
       return res.status(404).json({
         success: false,
         message: "USER NOT FOUND",
       });
     }
 
+    const recentToken = await ResetToken.findOne({ email: user.email })
+      .sort({ createdAt: -1 })
+      .limit(1);
+
     // VERIFY TOKEN
-    if (token !== existUser.resetToken) {
+    if (!recentToken || recentToken.token !== token) {
       return res.status(500).json({
         success: false,
-        message: "RESET TOKEN EXPIRED SO TRY TO GENERATE ANOTHER LINK",
+        message: "TOKEN EXPIRED SO TRY TO GENERATE ANOTHER LINK",
       });
     }
-
     // Compare password
     const hashPassword = await bcrypt.hash(newPassword, 10);
 
     // Save this password in user database
-    const updateData = await User.findByIdAndUpdate(
-      userId,
-      {
-        password: hashPassword,
-        resetToken: "",
-      },
-      { new: true }
-    );
+    user.password = hashPassword;
+    await user.save();
 
     // SEND EMAIL TO USER
-    await sendMail(existUser.email, "YOUR PASSWORD SUCCESSFULLY RESET");
+    await sendEmail(
+      user.email,
+      "RESET PASSWORD",
+      "YOUR PASSWORD SUCCESSFULLY RESET"
+    );
+
+    await ResetToken.deleteMany({ email: user.email });
 
     res.status(200).json({
       success: true,
@@ -439,10 +461,12 @@ exports.updateInformation = async (req, res) => {
     // FETCH USER DATA
     const userId = req.user._id;
     const { name, username, bio, privacy } = req.body;
-    if (!name || !username || !bio) {
+
+    const checkUser = await User.findById(userId);
+    if (!checkUser) {
       return res.status(404).json({
         success: false,
-        message: "ALL FIELDS ARE MENDANTORY",
+        message: "USER NOT FOUND",
       });
     }
 
@@ -454,7 +478,7 @@ exports.updateInformation = async (req, res) => {
     };
 
     if (req.file) {
-      const file = await uploadToCloudinary(req.file.path);
+      const file = await uploadToCloudinary(req.file);
       userdata.profilePicture = file.secure_url;
     }
 
@@ -466,13 +490,6 @@ exports.updateInformation = async (req, res) => {
       },
       { new: true }
     );
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "USER NOT FOUND",
-      });
-    }
 
     res.status(200).json({
       success: true,
@@ -487,3 +504,129 @@ exports.updateInformation = async (req, res) => {
     });
   }
 };
+
+exports.followAndUnfollow = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { to } = req.body;
+
+    const sender = await User.findById(id);
+    if (!sender)
+      res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "SENDER | USER NOT FOUND "));
+
+    const reciever = await User.findById(to);
+    if (!sender)
+      res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "USER NOT FOUND "));
+
+    const isFollowed = sender.following.some((f) => f._id.toString() === to);
+
+    if (isFollowed) {
+      sender.following.pull(to);
+      reciever.followers.pull(id);
+      await sender.save();
+      await reciever.save();
+      return res.json(sendResponse(true, "UNFOLLOWED"));
+    } else {
+      sender.following.push(to);
+      reciever.followers.push(id);
+      await sender.save();
+      await reciever.save();
+      return res.json(sendResponse(true, "FOLLOWED"));
+    }
+  } catch (error) {
+    res
+      .status(statusCodes.INTERNAL_SERVER_ERROR)
+      .json(sendResponse(false, error.message));
+  }
+};
+
+exports.acceptAndRejectFollowingRequest = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const { notificationId, action } = req.body;
+
+    const user = await User.findById(id);
+    if (!user)
+      res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "USER NOT FOUND "));
+
+    const notification = await Notifications.findById(notificationId);
+    if (!notification)
+      res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "NOTIFICATION NOT FOUND "));
+
+    if (notification.type !== "request")
+      res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "INVALID REQUEST"));
+
+    const { from, to, type } = notification;
+    if (to.toString() !== id)
+      res
+        .status(statusCodes.UNAUTHORIZED)
+        .json(sendResponse(false, "YOU ARE NOT AUTHORIZED TO DO THIS "));
+
+    const requestSender = await User.findById(from);
+    if (!requestSender)
+      res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "REQUEST SENDER NOT FOUND "));
+
+    const isFollowed = user.followers.some(
+      (f) => f._id.toString() === from.toString()
+    );
+
+    if (isFollowed) {
+      res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "USER ALREADY EXIST IN YOUR FOLLOWERS LIST"));
+    }
+
+    if (action === "accept") {
+      user.followers.push(requestSender._id);
+      requestSender.following.push(user._id);
+      await user.save();
+      await requestSender.save();
+      await Notifications.findByIdAndDelete(notification._id);
+      return res.json(sendResponse(true, "ACCEPTED"));
+    } else {
+      await Notifications.findByIdAndDelete(notification._id);
+      return res.json(sendResponse(true, "REJECTED"));
+    }
+  } catch (error) {
+    res
+      .status(statusCodes.INTERNAL_SERVER_ERROR)
+      .json(sendResponse(false, error.message));
+  }
+};
+// exports.deleteAccount = async (req, res) => {
+//   try {
+//     const userId = req.user._id;
+//     const user = await User.findByIdAndUpdate(userId, {
+//       isDeleted: true,
+//     });
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "USER NOT FOUND",
+//       });
+//     }
+//     res.clearCookie("token");
+//     res.status(200).json({
+//       success: true,
+//       message: "USER SUCCESSFULLY DELETED",
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: "ERROR IN USER DELETION PROCESS",
+//       error: error.message,
+//     });
+//   }
+// };

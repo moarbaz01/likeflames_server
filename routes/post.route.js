@@ -8,6 +8,7 @@ const {
   deletePost,
   get,
   getAll,
+  likedislike
 } = require("../controllers/post");
 const { verifyUser } = require("../middlewares/auth.mid");
 
@@ -16,6 +17,7 @@ Router.post("/", upload.array("files"), verifyUser, create);
 Router.put("/:id", verifyUser, update);
 Router.delete("/:id", verifyUser, deletePost);
 Router.get("/:id", get);
-Router.get("/posts", getAll);
+Router.get("/", getAll);
+Router.put("/likedislike/:id", verifyUser, likedislike);
 
 module.exports = Router;

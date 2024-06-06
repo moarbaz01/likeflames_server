@@ -2,7 +2,8 @@ const Comment = require("../models/comment.schema");
 const User = require("../models/user.schema");
 const Post = require("../models/post.schema");
 const statusCodes = require("../services/statusCodes");
-const sendResponse = require("../services/handlingResponse");
+const { uploadToCloudinary } = require("../utils/uploadMedia");
+const { sendResponse } = require("../services/handlingResponse");
 
 exports.create = async (req, res) => {
   try {
@@ -11,18 +12,29 @@ exports.create = async (req, res) => {
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(statusCodes.BAD_REQUEST).json(false, "USER NOT FOUND");
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "USER NOT FOUND"));
     }
 
-    const post = await Post.findById(post);
+    const post = await Post.findById(postId);
     if (!post) {
-      return res.status(statusCodes.BAD_REQUEST).json(false, "POST NOT FOUND");
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "POST NOT FOUND"));
+    }
+
+    let gif;
+    if (res.file) {
+      const myFile = await uploadToCloudinary(res.file);
+      gif = myFile.secure_url;
     }
 
     const comment = await Comment.create({
-      text,
+      text: text || null,
       post: postId,
       user: user,
+      gif: gif || null,
     });
 
     post.comments.push(comment._id);
@@ -34,7 +46,10 @@ exports.create = async (req, res) => {
       sendResponse(statusCodes.CREATED, "Comment created successfully", comment)
     );
   } catch (error) {
-    sendResponse(statusCodes.INTERNAL_SERVER_ERROR, error.message);
+    console.log(error);
+    res
+      .status(statusCodes.INTERNAL_SERVER_ERROR)
+      .json(sendResponse(false, error.message));
   }
 };
 
@@ -43,7 +58,7 @@ exports.getComments = async (req, res) => {
     const comments = await Comment.find();
     res.json(sendResponse(true, "Comments fetched successfully", comments));
   } catch (error) {
-    res.json(sendResponse(statusCodes.INTERNAL_SERVER_ERROR, error.message));
+    res.json(sendResponse(false, error.message));
   }
 };
 
@@ -54,39 +69,32 @@ exports.likeOnComment = async (req, res) => {
     const user = await User.findById(userId);
     const comment = await Comment.findById(commentId);
     if (!user) {
-      return res.status(statusCodes.BAD_REQUEST).json(false, "USER NOT FOUND");
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "USER NOT FOUND"));
     }
     if (!comment) {
       return res
         .status(statusCodes.BAD_REQUEST)
         .json(false, "COMMENT NOT FOUND");
     }
-    comment.likes.push(userId);
-    await comment.save();
-    res.json(sendResponse(true, "Comment liked successfully"));
-  } catch (error) {
-    res.json(sendResponse(statusCodes.INTERNAL_SERVER_ERROR, error.message));
-  }
-};
+    const isLiked = comment.likes.some((c) => c._id.toString() === userId);
+    if (isLiked) {
+      comment.likes.pull(userId);
+      await comment.save();
+      return res.json(sendResponse(true, "Unliked"));
+    } else {
+      comment.likes.push(userId);
+      await comment.save();
+      return res.json(sendResponse(true, "Liked"));
+    }
 
-exports.unlikeOnComment = async (req, res) => {
-  try {
-    const userId = req.user._id;
-    const commentId = req.params.id;
-    const user = await User.findById(userId);
-    const comment = await Comment.findById(commentId);
-    if (!user) {
-      return res.status(statusCodes.BAD_REQUEST).json(false, "USER NOT FOUND");
-    }
-    if (!comment) {
-      return res
-        .status(statusCodes.BAD_REQUEST)
-        .json(false, "COMMENT NOT FOUND");
-    }
-    comment.likes.pull(userId);
-    await comment.save();
-    res.json(sendResponse(true, "Comment unliked successfully"));
+    res
+      .status(statusCodes.UNAUTHORIZED)
+      .json(sendResponse(false, "Invalid Request", comment, "comment"));
   } catch (error) {
-    res.json(sendResponse(statusCodes.INTERNAL_SERVER_ERROR, error.message));
+    res
+      .status(statusCodes.INTERNAL_SERVER_ERROR)
+      .json(sendResponse(false, error.message));
   }
 };

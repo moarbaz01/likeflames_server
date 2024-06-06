@@ -39,6 +39,21 @@ const postSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+    dislikes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    reports: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    location: {
+      type: String,
+    },
     comments: [
       {
         type: mongoose.Schema.Types.ObjectId,
