@@ -14,6 +14,7 @@ const {
   generateResetToken,
   followAndUnfollow,
   acceptAndRejectFollowingRequest,
+  updateInformation,
 } = require("../controllers/auth");
 const { verifyUser } = require("../middlewares/auth.mid");
 
@@ -27,6 +28,7 @@ Router.get("/users", fetchUsers);
 Router.put("/follow-unfollow", verifyUser, followAndUnfollow);
 Router.put("/request", verifyUser, acceptAndRejectFollowingRequest);
 Router.post("/reset-password", resetPassword);
+Router.post("/info", updateInformation);
 Router.post("/generate-reset-token", generateResetToken);
 Router.post("/change-password", verifyUser, changePassword);
 

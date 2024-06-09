@@ -17,7 +17,7 @@ Router.post("/", upload.array("files"), verifyUser, create);
 Router.put("/:id", verifyUser, update);
 Router.delete("/:id", verifyUser, deletePost);
 Router.get("/:id", get);
-Router.get("/", getAll);
+Router.get("/posts", getAll);
 Router.put("/likedislike/:id", verifyUser, likedislike);
 
 module.exports = Router;

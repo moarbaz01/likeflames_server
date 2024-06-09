@@ -82,6 +82,7 @@ exports.sendOTP = async (req, res) => {
 exports.signup = async (req, res) => {
   try {
     const { name, username, password, email, otp } = req.body;
+    console.log(req.body);
 
     // Validation
     if (!email || !password || !username || !name || !otp) {
@@ -137,7 +138,7 @@ exports.signup = async (req, res) => {
       username,
       password: hashedPassword,
       email,
-      profilePicture: profilePictureURL,
+      profilePicture: profilePictureURL || "",
     });
 
     await Otp.deleteMany({ email });
@@ -154,6 +155,7 @@ exports.signup = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
+    console.log(req.body);
     if (!username || !password) {
       return res
         .status(statusCodes.BAD_REQUEST)
@@ -491,17 +493,13 @@ exports.updateInformation = async (req, res) => {
       { new: true }
     );
 
-    res.status(200).json({
-      success: true,
-      message: "USER INFORMATION SUCCESSFULLY UPDATE",
-      user,
-    });
+    res
+      .status(200)
+      .json(
+        sendResponse(true, "USER INFORMATION SUCCESSFULLY UPDATE", user, "user")
+      );
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "ERROR IN USER INFORMATION UPDATE PROCESS",
-      error: error.message,
-    });
+    res.status(500).json((false, error.message));
   }
 };
 
