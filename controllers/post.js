@@ -3,13 +3,17 @@ const Post = require("../models/post.schema");
 const Comment = require("../models/comment.schema");
 const statusCodes = require("../services/statusCodes");
 const { sendResponse } = require("../services/handlingResponse");
-const { uploadToCloudinary, deleteFileByUrl } = require("../utils/uploadMedia");
+const {
+  uploadToCloudinary,
+  deleteFileByUrl,
+  removeFromCloudinary,
+} = require("../utils/uploadMedia");
 
 // Create post
 exports.create = async (req, res) => {
   try {
     const id = req.user._id;
-    const { title, description, postType, fileType, tags, location } = req.body;
+    const { title, description, postType, tags, location, publish } = req.body;
 
     const user = await User.findById(id).select("-password");
     if (!user) {
@@ -18,7 +22,7 @@ exports.create = async (req, res) => {
         .json(sendResponse(false, "USER NOT FOUND"));
     }
 
-    if (!title || !description || !postType || !fileType) {
+    if (!title || !description || !postType) {
       return res
         .status(statusCodes.BAD_REQUEST)
         .json(sendResponse(false, "ALL FIELDS ARE REQUIRED"));
@@ -46,10 +50,11 @@ exports.create = async (req, res) => {
       title,
       description,
       postType,
-      fileType,
-      tags,
+      tags: JSON.parse(tags),
       files: filesURLS,
       location,
+      publish,
+      author: id,
     });
 
     user.posts.push(post._id);
@@ -71,7 +76,8 @@ exports.update = async (req, res) => {
   try {
     const id = req.user._id;
     const postId = req.params.id;
-    const { title, description, tags, privacy } = req.body;
+    const { title, description, tags, publish } = req.body;
+    console.log(req.body);
 
     const user = await User.findById(id).select("-password");
     if (!user) {
@@ -89,7 +95,7 @@ exports.update = async (req, res) => {
 
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { title, description, tags, privacy },
+      { title, description, tags, publish },
       { new: true }
     );
 
@@ -126,6 +132,12 @@ exports.deletePost = async (req, res) => {
         .json(sendResponse(false, "POST NOT FOUND"));
     }
 
+    if (!user.posts.includes(postId)) {
+      return res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "YOU CAN'T DO"));
+    }
+
     user.posts.pull(post._id);
     await user.save();
 
@@ -134,6 +146,18 @@ exports.deletePost = async (req, res) => {
     await User.updateMany({}, { $pull: { likes: { post: postId } } });
     await User.updateMany({}, { $pull: { dislikes: { post: postId } } });
     await Comment.deleteMany({ post: postId });
+
+    // Delete files from cloudinary
+    if (post.files && post.files.length > 0) {
+      const deletePromises = post.files.map(async (file) => {
+        await removeFromCloudinary(file);
+      });
+      await Promise.all(deletePromises)
+        .then(() => console.log("All files are deleted successfully"))
+        .catch((err) => console.log(err));
+    }
+    post.files = [];
+    await post.save();
     await Post.findByIdAndDelete(postId);
 
     res
@@ -152,7 +176,14 @@ exports.get = async (req, res) => {
   try {
     const postId = req.params.id;
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId)
+      .populate("author")
+      .populate({
+        path: "comments",
+        populate: {
+          path: "author",
+        },
+      });
     if (!post) {
       return res
         .status(statusCodes.NOT_FOUND)
@@ -161,7 +192,7 @@ exports.get = async (req, res) => {
 
     res
       .status(statusCodes.OK)
-      .json(sendResponse(true, "POST FETCHED SUCCESSFULLY", post));
+      .json(sendResponse(true, "POST FETCHED SUCCESSFULLY", post, "post"));
   } catch (error) {
     console.error("Error fetching post:", error);
     res
@@ -175,6 +206,7 @@ exports.likedislike = async (req, res) => {
     const id = req.user._id;
     const postId = req.params.id;
     const { type } = req.body;
+    console.log(req.body);
 
     const user = await User.findById(id);
     if (!user) {
@@ -183,7 +215,9 @@ exports.likedislike = async (req, res) => {
         .json(sendResponse(false, "USER NOT FOUND", null, "user"));
     }
 
-    const post = await Post.findById(postId);
+    const post = await Post.findById(postId).populate({
+      path: "author",
+    });
     if (!post) {
       return res
         .status(statusCodes.NOT_FOUND)
@@ -259,18 +293,41 @@ exports.likedislike = async (req, res) => {
 // Get all posts
 exports.getAll = async (req, res) => {
   try {
-    const posts = await Post.find();
-    if (!posts || posts.length === 0) {
+    // Find posts and populate
+    const posts = await Post.find()
+      .populate({
+        path: "author",
+        match: { privacy: { $ne: "private" } },
+      })
+      .populate({
+        path: "comments",
+        populate: [
+          { path: "author" },
+          {
+            path: "replies",
+            populate: [{ path: "author" }, { path: "parent" }],
+          },
+        ],
+      });
+
+    // Filter out posts with null authors
+    const filteredPosts = posts.filter((post) => post.author !== null);
+
+    // Check if any posts are found
+    if (filteredPosts.length === 0) {
       return res
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "POSTS NOT FOUND"));
     }
 
+    // Send the response with the filtered posts
     res
       .status(statusCodes.OK)
-      .json(sendResponse(true, "POSTS FETCHED SUCCESSFULLY", posts, "posts"));
+      .json(
+        sendResponse(true, "POSTS FETCHED SUCCESSFULLY", filteredPosts, "posts")
+      );
   } catch (error) {
-    console.error("Error fetching posts:", error);
+    console.error("Error fetching posts:", error.message);
     res
       .status(statusCodes.INTERNAL_SERVER_ERROR)
       .json(sendResponse(false, error.message));

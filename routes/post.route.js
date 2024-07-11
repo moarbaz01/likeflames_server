@@ -13,11 +13,11 @@ const {
 const { verifyUser } = require("../middlewares/auth.mid");
 
 // ROUTES
-Router.post("/", upload.array("files"), verifyUser, create);
-Router.put("/:id", verifyUser, update);
-Router.delete("/:id", verifyUser, deletePost);
-Router.get("/:id", get);
-Router.get("/posts", getAll);
-Router.put("/likedislike/:id", verifyUser, likedislike);
+Router.post("/post", upload.array("files"), verifyUser, create);
+Router.put("/post/:id", verifyUser, update);
+Router.delete("/post/:id", verifyUser, deletePost);
+Router.get("/post/:id", get);
+Router.get("/", getAll);
+Router.put("/post/likedislike/:id", verifyUser, likedislike);
 
 module.exports = Router;

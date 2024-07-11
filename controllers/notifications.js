@@ -41,11 +41,13 @@ exports.create = async (req, res) => {
       link,
     });
 
+    
+
     user.notifications.push(notifications._id);
     await user.save();
 
     res.json(
-      sendResponse(true, "NOTIFICATION SENT", notifications, "notifications")
+      sendResponse(true, "SUCCESSFULLY SENT", notifications, "notifications")
     );
   } catch (error) {
     res
@@ -97,5 +99,3 @@ exports.deleteNotifications = async (req, res) => {
 //       .json(sendResponse(false, error.message));
 //   }
 // };
-
-

@@ -20,10 +20,6 @@ const postSchema = new mongoose.Schema(
       type: String,
       enum: ["reel", "post"],
     },
-    fileType: {
-      type: String,
-      enum: ["image", "video"],
-    },
     tags: [
       {
         type: String,
@@ -60,7 +56,7 @@ const postSchema = new mongoose.Schema(
         ref: "Comment",
       },
     ],
-    privacy: {
+    publish: {
       type: String,
       enum: ["public", "private", "suspend"],
       default: "public",
@@ -81,9 +77,5 @@ const postSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Methods
-postSchema.methods.uploadPostFileToCloudinary = async (files) => {
-  return data;
-};
 
 module.exports = mongoose.model("Post", postSchema);

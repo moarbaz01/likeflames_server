@@ -5,17 +5,19 @@ const { sendResponse } = require("../services/handlingResponse");
 exports.verifyUser = async (req, res, next) => {
   try {
     const token =
-      req.cookies.token || req.headers.authorization.replace("Bearer ", "");
+      req.cookies.token ||
+      (req.headers.authorization &&
+        req.headers.authorization.replace("Bearer ", ""));
 
     if (!token) {
-      res
+      return res
         .status(statusCodes.NOT_FOUND)
-        .json(sendResponse(false, "TOKEN NOT FOUND"));
+        .json(sendResponse(false, "TOKEN EXPIRED || NOT FOUND"));
     }
 
-    const decode = await jwt.verify(token, process.env.JWT_SECRET);
+    const decode = jwt.verify(token, process.env.JWT_SECRET);
     if (!decode) {
-      res
+      return res
         .status(statusCodes.UNAUTHORIZED)
         .json(sendResponse(false, "TOKEN EXPIRED OR LOGIN EXPIRED"));
     }
@@ -23,17 +25,28 @@ exports.verifyUser = async (req, res, next) => {
     req.user = decode;
     next();
   } catch (error) {
-    res
-      .status(statusCodes.INTERNAL_SERVER_ERROR)
-      .json(sendResponse(false, error.message));
+    console.log(error.name);
+    if (error.name === "TokenExpiredError") {
+      return res
+        .status(statusCodes.UNAUTHORIZED)
+        .json(sendResponse(false, "TOKEN EXPIRED"));
+    } else if (error.name === "JsonWebTokenError") {
+      return res
+        .status(statusCodes.UNAUTHORIZED)
+        .json(sendResponse(false, "INVALID TOKEN"));
+    } else {
+      console.log(error.message);
+      return res
+        .status(statusCodes.INTERNAL_SERVER_ERROR)
+        .json(sendResponse(false, error.message));
+    }
   }
 };
-
 exports.verifyRole = async (req, res, next) => {
   try {
     const { role } = req.user;
     if (role !== "admin") {
-      res
+      return res
         .status(statusCodes.UNAUTHORIZED)
         .json(sendResponse(false, "PROTECTED ROUTE"));
     }

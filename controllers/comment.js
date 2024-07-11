@@ -9,7 +9,6 @@ exports.create = async (req, res) => {
   try {
     const userId = req.user._id;
     const { text, postId } = req.body;
-
     const user = await User.findById(userId);
     if (!user) {
       return res
@@ -25,16 +24,20 @@ exports.create = async (req, res) => {
     }
 
     let gif;
-    if (res.file) {
-      const myFile = await uploadToCloudinary(res.file);
+    if (req.file) {
+      console.log(req.file);
+      const myFile = await uploadToCloudinary(req.file);
       gif = myFile.secure_url;
     }
+
+    console.log("gif", gif);
 
     const comment = await Comment.create({
       text: text || null,
       post: postId,
-      user: user,
+      author: user,
       gif: gif || null,
+      parent: null,
     });
 
     post.comments.push(comment._id);
@@ -55,8 +58,23 @@ exports.create = async (req, res) => {
 
 exports.getComments = async (req, res) => {
   try {
-    const comments = await Comment.find();
-    res.json(sendResponse(true, "Comments fetched successfully", comments));
+    const comments = await Comment.find()
+      .populate("author")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "author",
+        },
+      })
+      .populate({
+        path: "parent",
+        populate: {
+          path: "author",
+        },
+      });
+    res.json(
+      sendResponse(true, "Comments fetched successfully", comments, "comments")
+    );
   } catch (error) {
     res.json(sendResponse(false, error.message));
   }
@@ -76,7 +94,7 @@ exports.likeOnComment = async (req, res) => {
     if (!comment) {
       return res
         .status(statusCodes.BAD_REQUEST)
-        .json(false, "COMMENT NOT FOUND");
+        .json(sendResponse(false, "COMMENT NOT FOUND"));
     }
     const isLiked = comment.likes.some((c) => c._id.toString() === userId);
     if (isLiked) {
@@ -96,5 +114,81 @@ exports.likeOnComment = async (req, res) => {
     res
       .status(statusCodes.INTERNAL_SERVER_ERROR)
       .json(sendResponse(false, error.message));
+  }
+};
+
+exports.replyOnComment = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const commentId = req.params.id;
+    const { text, parent, post } = req.body;
+    console.log(req.body);
+    const user = await User.findById(userId);
+    const comment = await Comment.findById(commentId);
+    if (!user) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "USER NOT FOUND"));
+    }
+    if (!comment) {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "COMMENT NOT FOUND"));
+    }
+    const reply = await Comment.create({
+      text,
+      author: user,
+      parent,
+      replyTo: commentId,
+      post,
+    });
+
+    comment.replies.push(reply);
+    await comment.save();
+    res.json(sendResponse(true, "Reply created successfully", reply, "reply"));
+  } catch (error) {
+    res
+      .status(statusCodes.INTERNAL_SERVER_ERROR)
+      .json(sendResponse(false, error.message));
+  }
+};
+
+exports.getPostComment = async (req, res) => {
+  try {
+    const postId = req.params.id;
+    if (!postId) {
+      return res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "Post Not Found"));
+    }
+    const comments = await Comment.find({ post: postId })
+      .populate("author")
+      .populate({
+        path: "replyTo",
+        populate: {
+          path: "author",
+        },
+      })
+      .populate({
+        path: "parent",
+        populate: {
+          path: "author",
+        },
+      });
+
+    if (!comments) {
+      return res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "No Comments"));
+    }
+
+    res.json(
+      sendResponse(false, "Comments fetched successfully", comments, "comments")
+    );
+  } catch (error) {
+    console.log(error.message);
+    res
+      .status(statusCodes.INTERNAL_SERVER_ERROR)
+      .json(sendResponse(false, "Internal Server Error"));
   }
 };

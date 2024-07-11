@@ -1,44 +1,73 @@
 const cloudinary = require("cloudinary").v2;
+const path = require("path");
 
-exports.uploadToCloudinary = async (file) => {
+exports.uploadToCloudinary = async (file, attachment) => {
   const options = {
     folder: "LIKEFLAMES",
     resource_type: "auto",
     use_filename: true,
     overwrite: true,
+    unique_filename: false,
+    attachment: attachment ? true : null,
+    // attachment
   };
-  const uploadedFile = await cloudinary.uploader.upload(file.path, options);
-  return uploadedFile;
+  console.log(file);
+  try {
+    const uploadedFile = await cloudinary.uploader.upload(file.path, options);
+    return uploadedFile;
+  } catch (error) {
+    console.log(error);
+  }
 };
 
-// // Function to extract public_id from Cloudinary URL
-// const extractPublicId = (url) => {
-//   const urlParts = url.split("/");
-//   const fileNameWithExtension = urlParts[urlParts.length - 1];
-//   const [fileName] = fileNameWithExtension.split(".");
-//   const publicId =
-//     urlParts.slice(urlParts.indexOf("upload") + 1, -1).join("/") +
-//     "/" +
-//     fileName;
-//   return publicId;
-// };
+const getPublicIdWithoutExtension = (file) => {
+  const parts = file.split("/");
+  const fileNameWithExtension = parts.pop();
+  const extension = path.extname(fileNameWithExtension).toLowerCase();
+  return fileNameWithExtension.replace(`${extension}`, "");
+};
 
-// // Function to delete a single file on Cloudinary
-// const deleteFile = async (publicId) => {
-//   try {
-//     await cloudinary.uploader.destroy(publicId);
-//   } catch (error) {
-//     console.log(error);
-//   }
-// };
-// /// Function to delete a single file given its secure URL
-// exports.deleteFileByUrl = async (url) => {
-//   try {
-//     const publicId = extractPublicId(url);
-//     const result = await deleteFile(publicId);
-//     return result;
-//   } catch (error) {
-//     console.error("Error deleting file:", error);
-//     throw error; // Rethrow the error to handle it further up the call chain if necessary
-//   }
-// };
+const getPublicIdWithExtension = (file) => {
+  const parts = file.split("/");
+  return (fileNameWithExtension = parts.pop());
+};
+
+const getResourceType = (file) => {
+  const extension = path.extname(file).toLowerCase();
+  // console.log(extension);
+  if ([".mp3", ".mp4", ".avi", ".mkv", ".mov"].includes(extension)) {
+    return "video";
+  } else if (
+    [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf"].includes(
+      extension
+    )
+  ) {
+    return "image";
+  } else {
+    return "raw"; // default for other types of files including txt
+  }
+};
+
+exports.removeFromCloudinary = async (file) => {
+  try {
+    const resourceType = getResourceType(file);
+    console.log(`Resource Type: ${resourceType}`);
+
+    const publicId =
+      resourceType === "raw"
+        ? getPublicIdWithExtension(file)
+        : getPublicIdWithoutExtension(file);
+    console.log(`Public ID: ${publicId}`);
+
+    const options = { invalidate: true, resource_type: resourceType };
+    const deletedFile = await cloudinary.uploader.destroy(
+      `LIKEFLAMES/${publicId}`,
+      options
+    );
+
+    console.log(`Deleted File: ${JSON.stringify(deletedFile)}`);
+    return deletedFile;
+  } catch (error) {
+    console.error(`Error: ${error.message}`, error);
+  }
+};

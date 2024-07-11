@@ -15,6 +15,7 @@ const {
   followAndUnfollow,
   acceptAndRejectFollowingRequest,
   updateInformation,
+  fetchUserById,
 } = require("../controllers/auth");
 const { verifyUser } = require("../middlewares/auth.mid");
 
@@ -24,13 +25,19 @@ Router.post("/login", login);
 Router.post("/otp", sendOTP);
 Router.get("/logout", verifyUser, logout);
 Router.get("/user", verifyUser, fetchUser);
+Router.get("/user/:id", fetchUserById);
 Router.get("/users", fetchUsers);
 Router.put("/follow-unfollow", verifyUser, followAndUnfollow);
 Router.put("/request", verifyUser, acceptAndRejectFollowingRequest);
 Router.post("/reset-password", resetPassword);
-Router.post("/info", updateInformation);
+Router.put(
+  "/info",
+  upload.single("profilePicture"),
+  verifyUser,
+  updateInformation
+);
 Router.post("/generate-reset-token", generateResetToken);
-Router.post("/change-password", verifyUser, changePassword);
+Router.put("/change-password", verifyUser, changePassword);
 
 // EXPORT ROUTER
 module.exports = Router;

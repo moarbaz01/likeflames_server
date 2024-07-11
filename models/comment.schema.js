@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const commentSchema = new mongoose.Schema(
   {
-    user: {
+    author: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
@@ -12,6 +12,14 @@ const commentSchema = new mongoose.Schema(
     post: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Post",
+    },
+    parent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+    },
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
     },
     gif: {
       type: String,

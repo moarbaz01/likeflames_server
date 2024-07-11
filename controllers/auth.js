@@ -244,7 +244,63 @@ exports.fetchUser = async (req, res) => {
       res.status(statusCodes.NOT_FOUND).json(false, "USER DETAILS NOT FOUND");
     }
 
-    const user = await User.findById(id).select("-password");
+    const user = await User.findById(id)
+      .populate({
+        path: "notifications",
+        populate: {
+          path: "from to",
+        },
+      })
+      .populate({
+        path: "posts",
+        populate: {
+          path: "author",
+        },
+      })
+      .populate({
+        path: "comments",
+        populate: {
+          path: "author",
+        },
+      });
+    if (!user) {
+      res.status(statusCodes.NOT_FOUND).json(false, "USER NOT FOUND");
+    }
+
+    res.json(sendResponse(true, "USER SUCCESSFULLY FETCHED", user, "user"));
+  } catch (error) {
+    res.json(sendResponse(false, error.message));
+  }
+};
+
+// get user
+exports.fetchUserById = async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!id) {
+      res.status(statusCodes.NOT_FOUND).json(false, "USER DETAILS NOT FOUND");
+    }
+
+    const user = await User.findById(id)
+      .populate({
+        path: "posts",
+        populate: {
+          path: "author",
+        },
+      })
+      .populate({
+        path: "notifications",
+        populate: {
+          path: "from to",
+        },
+      })
+      .populate({
+        path: "comments",
+        populate: {
+          path: "author",
+        },
+      });
+
     if (!user) {
       res.status(statusCodes.NOT_FOUND).json(false, "USER NOT FOUND");
     }
@@ -258,11 +314,32 @@ exports.fetchUser = async (req, res) => {
 // get users
 exports.fetchUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password");
+    const users = await User.find()
+      .populate({
+        path: "posts",
+        populate: {
+          path: "author",
+        },
+      })
+      .populate({
+        path: "notifications",
+        populate: {
+          path: "from to",
+        },
+      })
+      .populate({
+        path: "comments",
+        populate: {
+          path: "author",
+        },
+      })
+      .populate({
+        path: "followers following",
+      });
     if (!users) {
       res.status(statusCodes.NOT_FOUND).json(false, "USERS NOT FOUND");
     }
-
+    ``;
     res.json(sendResponse(true, "USERS SUCCESSFULLY FETCHED", users, "users"));
   } catch (error) {
     res.json(sendResponse(false, error.message));
@@ -274,19 +351,12 @@ exports.changePassword = async (req, res) => {
   try {
     // Fetch Data
     const userId = req.user._id;
-    const { oldPassword, newPassword, confirmPassword } = req.body;
+    const { oldPassword, newPassword } = req.body;
 
-    if (!oldPassword || !newPassword || !confirmPassword || !userId) {
+    if (!oldPassword || !newPassword || !userId) {
       return res.status(500).json({
         success: false,
         message: "ALL FIELDS ARE MENDANTORY",
-      });
-    }
-
-    if (newPassword !== confirmPassword) {
-      return res.status(500).json({
-        success: false,
-        message: "CONFIRM PASSWORD AND NEW PASSWORD NOT MATCHED",
       });
     }
 
@@ -323,16 +393,11 @@ exports.changePassword = async (req, res) => {
     // SEND EMAIL TO USER
     await sendEmail(user.email, "YOUR PASSWORD SUCCESSFULLY CHANGE");
 
-    res.status(200).json({
-      success: true,
-      message: "SUCCESSFULLY PASSWORD CHANGE",
-    });
+    res
+      .status(200)
+      .json(sendResponse(true, "YOUR PASSWORD SUCCESSFULLY CHANGE"));
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "ERROR IN PASSWORD CHANGE",
-      error: error.message,
-    });
+    res.status(500).json((false, "ERROR IN PASSWORD CHANGE"));
   }
 };
 
@@ -472,6 +537,15 @@ exports.updateInformation = async (req, res) => {
       });
     }
 
+    if (username) {
+      const checkUsername = await User.findOne({ username });
+      if (checkUsername) {
+        return res
+          .status(500)
+          .json(sendResponse(false, "USERNAME ALREADY TAKEN BY ANOTHER"));
+      }
+    }
+
     const userdata = {
       name,
       username,
@@ -483,6 +557,9 @@ exports.updateInformation = async (req, res) => {
       const file = await uploadToCloudinary(req.file);
       userdata.profilePicture = file.secure_url;
     }
+
+    console.log(req.file);
+    console.log("Bdy", req.body);
 
     // Check user existence
     const user = await User.findByIdAndUpdate(
@@ -499,7 +576,7 @@ exports.updateInformation = async (req, res) => {
         sendResponse(true, "USER INFORMATION SUCCESSFULLY UPDATE", user, "user")
       );
   } catch (error) {
-    res.status(500).json((false, error.message));
+    res.status(500).json(sendResponse(false, error.message));
   }
 };
 
@@ -514,8 +591,10 @@ exports.followAndUnfollow = async (req, res) => {
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "SENDER | USER NOT FOUND "));
 
-    const reciever = await User.findById(to);
-    if (!sender)
+    const receiver = await User.findById(to).populate({
+      path: "notifications",
+    });
+    if (!receiver)
       res
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "USER NOT FOUND "));
@@ -524,15 +603,15 @@ exports.followAndUnfollow = async (req, res) => {
 
     if (isFollowed) {
       sender.following.pull(to);
-      reciever.followers.pull(id);
+      receiver.followers.pull(id);
       await sender.save();
-      await reciever.save();
+      await receiver.save();
       return res.json(sendResponse(true, "UNFOLLOWED"));
     } else {
       sender.following.push(to);
-      reciever.followers.push(id);
+      receiver.followers.push(id);
       await sender.save();
-      await reciever.save();
+      await receiver.save();
       return res.json(sendResponse(true, "FOLLOWED"));
     }
   } catch (error) {
@@ -564,7 +643,7 @@ exports.acceptAndRejectFollowingRequest = async (req, res) => {
         .status(statusCodes.BAD_REQUEST)
         .json(sendResponse(false, "INVALID REQUEST"));
 
-    const { from, to, type } = notification;
+    const { from, to } = notification;
     if (to.toString() !== id)
       res
         .status(statusCodes.UNAUTHORIZED)
@@ -603,6 +682,7 @@ exports.acceptAndRejectFollowingRequest = async (req, res) => {
       .json(sendResponse(false, error.message));
   }
 };
+
 // exports.deleteAccount = async (req, res) => {
 //   try {
 //     const userId = req.user._id;
