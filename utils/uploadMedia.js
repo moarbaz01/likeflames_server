@@ -2,17 +2,28 @@ const fs = require("fs");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
 
-// Upload a file to Cloudinary and unlink (delete) the local file after upload
-exports.uploadToCloudinary = async (file) => {
+const fs = require("fs");
+const cloudinary = require("cloudinary").v2;
+
+exports.uploadToCloudinary = async (file, attachment) => {
+  // Cloudinary upload options
   const options = {
     folder: "LIKEFLAMES",
     resource_type: "auto",
     use_filename: true,
     overwrite: true,
     unique_filename: false,
+    attachment: attachment ? true : null,
   };
 
+  console.log("File to upload:", file);
+  
   try {
+    // Verify that the file exists
+    if (!fs.existsSync(file.path)) {
+      throw new Error(`File not found: ${file.path}`);
+    }
+
     // Upload the file to Cloudinary
     const uploadedFile = await cloudinary.uploader.upload(file.path, options);
 
@@ -27,10 +38,11 @@ exports.uploadToCloudinary = async (file) => {
 
     return uploadedFile;
   } catch (error) {
-    console.error("Error uploading to Cloudinary:", error);
-    throw new Error("Upload to Cloudinary failed");
+    console.error("Error uploading to Cloudinary:", error.message);
+    throw error;
   }
 };
+
 
 const getPublicIdWithoutExtension = (file) => {
   const parts = file.split("/");
