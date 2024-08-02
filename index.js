@@ -3,6 +3,8 @@ const app = express();
 const cors = require("cors");
 const server = require("http").createServer(app);
 const { Server } = require("socket.io");
+const fs = require("fs");
+const path = require("path");
 const io = new Server(server, {
   cors: {
     origin: ["http://localhost:5173", process.env.CLIENT_URL], // Remove the trailing slash
@@ -10,6 +12,14 @@ const io = new Server(server, {
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
+
+// Path to the uploads directory
+const uploadsDir = path.join(__dirname, "uploads");
+
+// Create the directory if it doesn't exist
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
 
 // Socket Configuration
 const { mySockets } = require("./utils/sockets");
@@ -53,12 +63,12 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something broke!");
 });
 
-app.get("/check", (req, res) => {
-  res.status(200).json({
-    success: true,
-    data: "Hi",
-  });
-});
+// app.get("/check", (req, res) => {
+//   res.status(200).json({
+//     success: true,
+//     data: "Hi",
+//   });
+// });
 
 // Start the server
 server.listen(PORT, () => {
