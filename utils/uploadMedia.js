@@ -2,9 +2,6 @@ const fs = require("fs");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
 
-const fs = require("fs");
-const cloudinary = require("cloudinary").v2;
-
 exports.uploadToCloudinary = async (file, attachment) => {
   // Cloudinary upload options
   const options = {
