@@ -10,6 +10,7 @@ const io = new Server(server, {
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
+const path = require("path");
 
 // Socket Configuration
 const { mySockets } = require("./utils/sockets");
@@ -53,6 +54,17 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something broke!");
 });
 
+app.get("/check", (req, res) => {
+  try {
+    res.status(200).json({
+      success: true,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+    });
+  }
+});
 // Start the server
 server.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
