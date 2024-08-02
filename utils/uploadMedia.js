@@ -1,8 +1,12 @@
+const fs = require("fs");
+const path = require("path");
 const cloudinary = require("cloudinary").v2;
 const path = require("path");
 const fs = require("fs");
 
-exports.uploadToCloudinary = async (file, attachment) => {
+// Upload a file to Cloudinary and unlink (delete) the local file after upload
+exports.uploadAndCleanFile = async (file, attachment) => {
+  // Cloudinary upload options
   const options = {
     folder: "LIKEFLAMES",
     resource_type: "auto",
@@ -14,6 +18,7 @@ exports.uploadToCloudinary = async (file, attachment) => {
 
   console.log(file);
   try {
+    // Upload the file to Cloudinary
     const uploadedFile = await cloudinary.uploader.upload(file.path, options);
 
     // Delete the local file after uploading
@@ -59,6 +64,7 @@ const getResourceType = (file) => {
   }
 };
 
+// Remove a file from Cloudinary
 exports.removeFromCloudinary = async (file) => {
   try {
     const resourceType = getResourceType(file);

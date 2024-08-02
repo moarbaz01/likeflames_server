@@ -5,11 +5,12 @@ const server = require("http").createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Remove the trailing slash
+    origin: ["http://localhost:5173", process.env.CLIENT_URL], // Remove the trailing slash
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
+const path = require("path");
 
 // Socket Configuration
 const { mySockets } = require("./utils/sockets");
@@ -18,7 +19,7 @@ mySockets({ io });
 // Use cors middleware for regular HTTP routes
 app.use(
   cors({
-    origin: "http://localhost:5173", // Allow requests from this origin
+    origin: ["http://localhost:5173", process.env.CLIENT_URL], // Allow requests from this origin
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })

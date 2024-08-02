@@ -427,7 +427,7 @@ exports.generateResetToken = async (req, res) => {
     // GENERATE A TOKEN
     const token = crypto.randomBytes(20).toString("hex");
     // CREATE A LINK FOR USER
-    const link = `http://localhost:5173/resetPassword?id=${user._id}&token=${token}`;
+    const link = `http://localhost:5173/resetpassword?id=${user._id}&token=${token}`;
     // SEND EMAIL TO THE USER
     await sendEmail(
       email,
@@ -458,6 +458,7 @@ exports.resetPassword = async (req, res) => {
   try {
     // Fetch Data
     const { token, id, newPassword, confirmPassword } = req.body;
+    console.log(req.body);
 
     if (!newPassword || !confirmPassword) {
       return res.status(500).json({
@@ -623,61 +624,75 @@ exports.followAndUnfollow = async (req, res) => {
 
 exports.acceptAndRejectFollowingRequest = async (req, res) => {
   try {
-    const id = req.user._id;
+    const userId = req.user._id;
     const { notificationId, action } = req.body;
 
-    const user = await User.findById(id);
-    if (!user)
-      res
+    const user = await User.findById(userId);
+    if (!user) {
+      return res
         .status(statusCodes.NOT_FOUND)
-        .json(sendResponse(false, "USER NOT FOUND "));
+        .json(sendResponse(false, "USER NOT FOUND"));
+    }
 
     const notification = await Notifications.findById(notificationId);
-    if (!notification)
-      res
+    if (!notification) {
+      return res
         .status(statusCodes.NOT_FOUND)
-        .json(sendResponse(false, "NOTIFICATION NOT FOUND "));
+        .json(sendResponse(false, "NOTIFICATION NOT FOUND"));
+    }
 
-    if (notification.type !== "request")
-      res
+    if (notification.type !== "request") {
+      return res
         .status(statusCodes.BAD_REQUEST)
         .json(sendResponse(false, "INVALID REQUEST"));
+    }
 
     const { from, to } = notification;
-    if (to.toString() !== id)
-      res
+    if (to.toString() !== userId.toString()) {
+      return res
         .status(statusCodes.UNAUTHORIZED)
-        .json(sendResponse(false, "YOU ARE NOT AUTHORIZED TO DO THIS "));
+        .json(sendResponse(false, "YOU ARE NOT AUTHORIZED TO DO THIS"));
+    }
 
     const requestSender = await User.findById(from);
-    if (!requestSender)
-      res
+    if (!requestSender) {
+      return res
         .status(statusCodes.NOT_FOUND)
-        .json(sendResponse(false, "REQUEST SENDER NOT FOUND "));
+        .json(sendResponse(false, "REQUEST SENDER NOT FOUND"));
+    }
 
     const isFollowed = user.followers.some(
-      (f) => f._id.toString() === from.toString()
+      (follower) => follower.toString() === from.toString()
     );
 
     if (isFollowed) {
-      res
+      return res
         .status(statusCodes.BAD_REQUEST)
-        .json(sendResponse(false, "USER ALREADY EXIST IN YOUR FOLLOWERS LIST"));
+        .json(
+          sendResponse(false, "USER ALREADY EXISTS IN YOUR FOLLOWERS LIST")
+        );
     }
 
     if (action === "accept") {
       user.followers.push(requestSender._id);
       requestSender.following.push(user._id);
+      await user.notifications.pull(notification._id);
       await user.save();
       await requestSender.save();
       await Notifications.findByIdAndDelete(notification._id);
       return res.json(sendResponse(true, "ACCEPTED"));
-    } else {
+    } else if (action === "reject") {
+      await user.notifications.pull(notification._id);
+      await user.save();
       await Notifications.findByIdAndDelete(notification._id);
       return res.json(sendResponse(true, "REJECTED"));
+    } else {
+      return res
+        .status(statusCodes.BAD_REQUEST)
+        .json(sendResponse(false, "INVALID ACTION"));
     }
   } catch (error) {
-    res
+    return res
       .status(statusCodes.INTERNAL_SERVER_ERROR)
       .json(sendResponse(false, error.message));
   }

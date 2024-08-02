@@ -8,6 +8,31 @@ const {
   deleteFileByUrl,
   removeFromCloudinary,
 } = require("../utils/uploadMedia");
+const vision = require("@google-cloud/vision");
+const client = new vision.ImageAnnotatorClient();
+
+const IsAdultContent = async (files) => {
+  try {
+    const detectionPromises = files.map((file) =>
+      client.safeSearchDetection(file.path)
+    );
+    const results = await Promise.all(detectionPromises);
+
+    return results.map(([result]) => {
+      const detections = result.safeSearchAnnotation;
+      const isAdultContent =
+        detections.adult === "LIKELY" ||
+        detections.adult === "VERY_LIKELY" ||
+        detections.violence === "LIKELY" ||
+        detections.violence === "VERY_LIKELY";
+
+      return isAdultContent;
+    });
+  } catch (error) {
+    console.error("Error in SafeSearch detection:", error);
+    return files.map(() => false); // default to non-adult content in case of error
+  }
+};
 
 // Create post
 exports.create = async (req, res) => {
@@ -28,14 +53,21 @@ exports.create = async (req, res) => {
         .json(sendResponse(false, "ALL FIELDS ARE REQUIRED"));
     }
 
-    if (req.files && req.files.length === 0) {
+    if (!req.files || req.files.length === 0) {
       return res
         .status(statusCodes.BAD_REQUEST)
-        .json(sendResponse(false, "ATLEAST ONE FILE IS REQUIRED"));
+        .json(sendResponse(false, "AT LEAST ONE FILE IS REQUIRED"));
     }
 
     let filesURLS = [];
     if (req.files && req.files.length > 0) {
+      const adultContentResults = await IsAdultContent(req.files);
+      if (adultContentResults.some((isAdult) => isAdult)) {
+        return res
+          .status(statusCodes.BAD_REQUEST)
+          .json(sendResponse(false, "FILES CONTAIN ADULT CONTENT"));
+      }
+
       // Upload files
       const uploadPromises = req.files.map(async (element) => {
         const f = await uploadToCloudinary(element);
