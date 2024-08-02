@@ -1,11 +1,9 @@
 const fs = require("fs");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
-const path = require("path");
-const fs = require("fs");
 
 // Upload a file to Cloudinary and unlink (delete) the local file after upload
-exports.uploadAndCleanFile = async (file, attachment) => {
+exports.uploadToCloudinary = async (file, attachment) => {
   // Cloudinary upload options
   const options = {
     folder: "LIKEFLAMES",

@@ -559,9 +559,6 @@ exports.updateInformation = async (req, res) => {
       userdata.profilePicture = file.secure_url;
     }
 
-    console.log(req.file);
-    console.log("Bdy", req.body);
-
     // Check user existence
     const user = await User.findByIdAndUpdate(
       userId,

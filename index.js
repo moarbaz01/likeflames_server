@@ -10,7 +10,6 @@ const io = new Server(server, {
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
-const path = require("path");
 
 // Socket Configuration
 const { mySockets } = require("./utils/sockets");
