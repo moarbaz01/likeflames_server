@@ -5,7 +5,7 @@ const server = require("http").createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Remove the trailing slash
+    origin: ["http://localhost:5173", process.env.CLIENT_URL], // Remove the trailing slash
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   },
