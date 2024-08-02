@@ -1,5 +1,6 @@
 const cloudinary = require("cloudinary").v2;
 const path = require("path");
+const fs = require("fs");
 
 exports.uploadToCloudinary = async (file, attachment) => {
   const options = {
@@ -9,14 +10,25 @@ exports.uploadToCloudinary = async (file, attachment) => {
     overwrite: true,
     unique_filename: false,
     attachment: attachment ? true : null,
-    // attachment
   };
+
   console.log(file);
   try {
     const uploadedFile = await cloudinary.uploader.upload(file.path, options);
+
+    // Delete the local file after uploading
+    fs.unlink(file.path, (err) => {
+      if (err) {
+        console.error("Error deleting local file:", err);
+      } else {
+        console.log("Local file deleted successfully");
+      }
+    });
+
     return uploadedFile;
   } catch (error) {
-    console.log(error);
+    console.error("Error uploading to Cloudinary:", error);
+    throw error;
   }
 };
 
@@ -29,12 +41,11 @@ const getPublicIdWithoutExtension = (file) => {
 
 const getPublicIdWithExtension = (file) => {
   const parts = file.split("/");
-  return (fileNameWithExtension = parts.pop());
+  return parts.pop();
 };
 
 const getResourceType = (file) => {
   const extension = path.extname(file).toLowerCase();
-  // console.log(extension);
   if ([".mp3", ".mp4", ".avi", ".mkv", ".mov"].includes(extension)) {
     return "video";
   } else if (
@@ -68,6 +79,10 @@ exports.removeFromCloudinary = async (file) => {
     console.log(`Deleted File: ${JSON.stringify(deletedFile)}`);
     return deletedFile;
   } catch (error) {
-    console.error(`Error: ${error.message}`, error);
+    console.error(
+      `Error removing file from Cloudinary: ${error.message}`,
+      error
+    );
+    throw error;
   }
 };
