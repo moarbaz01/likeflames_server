@@ -3,28 +3,24 @@ const path = require("path");
 const cloudinary = require("cloudinary").v2;
 
 exports.uploadToCloudinary = async (file, attachment) => {
-  // Cloudinary upload options
   const options = {
     folder: "LIKEFLAMES",
     resource_type: "auto",
     use_filename: true,
     overwrite: true,
     unique_filename: false,
-    attachment: attachment ? true : null,
+    attachment: !!attachment, // Simplified boolean assignment
   };
 
   console.log("File to upload:", file);
-  
+
   try {
-    // Verify that the file exists
     if (!fs.existsSync(file.path)) {
       throw new Error(`File not found: ${file.path}`);
     }
 
-    // Upload the file to Cloudinary
     const uploadedFile = await cloudinary.uploader.upload(file.path, options);
 
-    // Delete the local file after uploading
     fs.unlink(file.path, (err) => {
       if (err) {
         console.error("Error deleting local file:", err);
@@ -40,31 +36,24 @@ exports.uploadToCloudinary = async (file, attachment) => {
   }
 };
 
-
 const getPublicIdWithoutExtension = (file) => {
-  const parts = file.split("/");
-  const fileNameWithExtension = parts.pop();
-  const extension = path.extname(fileNameWithExtension).toLowerCase();
-  return fileNameWithExtension.replace(`${extension}`, "");
+  const fileNameWithExtension = path.basename(file);
+  const extension = path.extname(fileNameWithExtension);
+  return fileNameWithExtension.replace(extension, "");
 };
 
 const getPublicIdWithExtension = (file) => {
-  const parts = file.split("/");
-  return parts.pop();
+  return path.basename(file);
 };
 
 const getResourceType = (file) => {
   const extension = path.extname(file).toLowerCase();
   if ([".mp3", ".mp4", ".avi", ".mkv", ".mov"].includes(extension)) {
     return "video";
-  } else if (
-    [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf"].includes(
-      extension
-    )
-  ) {
+  } else if ([".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf"].includes(extension)) {
     return "image";
   } else {
-    return "raw"; // default for other types of files including txt
+    return "raw";
   }
 };
 
@@ -74,25 +63,16 @@ exports.removeFromCloudinary = async (file) => {
     const resourceType = getResourceType(file);
     console.log(`Resource Type: ${resourceType}`);
 
-    const publicId =
-      resourceType === "raw"
-        ? getPublicIdWithExtension(file)
-        : getPublicIdWithoutExtension(file);
+    const publicId = resourceType === "raw" ? getPublicIdWithExtension(file) : getPublicIdWithoutExtension(file);
     console.log(`Public ID: ${publicId}`);
 
     const options = { invalidate: true, resource_type: resourceType };
-    const deletedFile = await cloudinary.uploader.destroy(
-      `LIKEFLAMES/${publicId}`,
-      options
-    );
+    const deletedFile = await cloudinary.uploader.destroy(`LIKEFLAMES/${publicId}`, options);
 
     console.log(`Deleted File: ${JSON.stringify(deletedFile)}`);
     return deletedFile;
   } catch (error) {
-    console.error(
-      `Error removing file from Cloudinary: ${error.message}`,
-      error
-    );
+    console.error(`Error removing file from Cloudinary: ${error.message}`, error);
     throw error;
   }
 };
