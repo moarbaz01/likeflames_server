@@ -63,12 +63,12 @@ app.use((err, req, res, next) => {
   res.status(500).send("Something broke!");
 });
 
-// app.get("/check", (req, res) => {
-//   res.status(200).json({
-//     success: true,
-//     data: "Hi",
-//   });
-// });
+app.get("/check", (req, res) => {
+  res.status(200).json({
+    success: true,
+    data: "Hi",
+  });
+});
 
 // Start the server
 server.listen(PORT, () => {
