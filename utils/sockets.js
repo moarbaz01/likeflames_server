@@ -1,7 +1,7 @@
 const { chatSockets } = require("../sockets/chat.sockets");
 const { notificationSockets } = require("../sockets/notification.sockets");
 const { peerSockets } = require("../sockets/peer.sockets");
-
+const User = require("../models/user.schema");
 const connectedUser = {};
 const userLastSeen = {};
 
@@ -21,17 +21,15 @@ exports.mySockets = ({ io }) => {
     });
 
     // User Disconnected
-    socket.on("disconnect", () => {
-      Object.keys(connectedUser).forEach((key) => {
+    socket.on("disconnect", async () => {
+      for (const [key] of Object.entries(connectedUser)) {
         if (connectedUser[key] === socket.id) {
           const currentDate = new Date();
-          userLastSeen[key] = currentDate;
+          await User.findByIdAndUpdate(key, { lastSeen: currentDate });
           delete connectedUser[key];
-          // Emit updated connected users and last seen times to all clients
           io.emit("get:sockets", connectedUser);
-          io.emit("get:lastSeen", userLastSeen);
         }
-      });
+      }
     });
 
     // Error handling

@@ -102,6 +102,11 @@ const userSchema = new mongoose.Schema(
       },
     ],
 
+    lastSeen: {
+      type: Date,
+      default: new Date(),
+    },
+
     isDeleted: {
       type: Boolean,
       default: false,
