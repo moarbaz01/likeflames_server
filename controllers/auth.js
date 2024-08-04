@@ -2,9 +2,8 @@ const User = require("../models/user.schema");
 const jwt = require("jsonwebtoken");
 const statusCodes = require("../services/statusCodes");
 const { sendResponse } = require("../services/handlingResponse");
-const fs = require("fs");
-const { uploadToCloudinary } = require("../utils/uploadMedia");
 const bcrypt = require("bcrypt");
+const { uploadToCloudinary } = require("../utils/uploadMedia");
 const otpGenerator = require("otp-generator");
 const { sendEmail } = require("../utils/mailSend");
 const Otp = require("../models/otp.schema");
@@ -206,19 +205,19 @@ exports.logout = async (req, res) => {
       req.headers.authorization?.replace("Bearer ", "") || req.cookies.token;
 
     if (!token) {
-      res
+      return res
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "TOKEN NOT FOUND"));
     }
     const decode = decodeToken(token);
     if (!decode) {
-      res
+      return res
         .status(statusCodes.UNAUTHORIZED)
         .json(sendResponse(false, "TOKEN EXPIRED OR LOGIN EXPIRED"));
     }
     const user = await User.findById(decode._id);
     if (!user) {
-      res
+      return res
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "USER NOT FOUND"));
     }
@@ -241,7 +240,9 @@ exports.fetchUser = async (req, res) => {
   try {
     const id = req.user._id;
     if (!id) {
-      res.status(statusCodes.NOT_FOUND).json(false, "USER DETAILS NOT FOUND");
+      return res
+        .status(statusCodes.NOT_FOUND)
+        .json(false, "USER DETAILS NOT FOUND");
     }
 
     const user = await User.findById(id)
@@ -264,7 +265,9 @@ exports.fetchUser = async (req, res) => {
         },
       });
     if (!user) {
-      res.status(statusCodes.NOT_FOUND).json(false, "USER NOT FOUND");
+      return res
+        .status(statusCodes.NOT_FOUND)
+        .json(sendResponse(false, "USER NOT FOUND"));
     }
 
     res.json(sendResponse(true, "USER SUCCESSFULLY FETCHED", user, "user"));
@@ -278,7 +281,9 @@ exports.fetchUserById = async (req, res) => {
   try {
     const id = req.params.id;
     if (!id) {
-      res.status(statusCodes.NOT_FOUND).json(false, "USER DETAILS NOT FOUND");
+      return res
+        .status(statusCodes.NOT_FOUND)
+        .json(false, "USER DETAILS NOT FOUND");
     }
 
     const user = await User.findById(id)
@@ -302,7 +307,7 @@ exports.fetchUserById = async (req, res) => {
       });
 
     if (!user) {
-      res.status(statusCodes.NOT_FOUND).json(false, "USER NOT FOUND");
+      return res.status(statusCodes.NOT_FOUND).json(false, "USER NOT FOUND");
     }
 
     res.json(sendResponse(true, "USER SUCCESSFULLY FETCHED", user, "user"));
@@ -337,7 +342,7 @@ exports.fetchUsers = async (req, res) => {
         path: "followers following",
       });
     if (!users) {
-      res.status(statusCodes.NOT_FOUND).json(false, "USERS NOT FOUND");
+      return res.status(statusCodes.NOT_FOUND).json(false, "USERS NOT FOUND");
     }
     ``;
     res.json(sendResponse(true, "USERS SUCCESSFULLY FETCHED", users, "users"));
@@ -584,19 +589,20 @@ exports.followAndUnfollow = async (req, res) => {
     const { to } = req.body;
 
     const sender = await User.findById(id);
-    if (!sender)
+    if (!sender) {
       res
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "SENDER | USER NOT FOUND "));
+    }
 
     const receiver = await User.findById(to).populate({
       path: "notifications",
     });
-    if (!receiver)
-      res
+    if (!receiver) {
+      return res
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "USER NOT FOUND "));
-
+    }
     const isFollowed = sender.following.some((f) => f._id.toString() === to);
 
     if (isFollowed) {

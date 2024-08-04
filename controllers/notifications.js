@@ -41,8 +41,6 @@ exports.create = async (req, res) => {
       link,
     });
 
-    
-
     user.notifications.push(notifications._id);
     await user.save();
 
