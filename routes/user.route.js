@@ -18,11 +18,12 @@ const {
   fetchUserById,
 } = require("../controllers/auth");
 const { verifyUser } = require("../middlewares/auth.mid");
+const { limiter } = require("../utils/rateLimiter");
 
 // ROUTE
 Router.post("/signup", upload.single("profilePicture"), signup);
-Router.post("/login", login);
-Router.post("/otp", sendOTP);
+Router.post("/login", limiter, login);
+Router.post("/otp", limiter, sendOTP);
 Router.get("/logout", verifyUser, logout);
 Router.get("/user", verifyUser, fetchUser);
 Router.get("/user/:id", fetchUserById);
@@ -36,7 +37,7 @@ Router.put(
   verifyUser,
   updateInformation
 );
-Router.post("/generate-reset-token", generateResetToken);
+Router.post("/generate-reset-token", limiter, generateResetToken);
 Router.put("/change-password", verifyUser, changePassword);
 
 // EXPORT ROUTER

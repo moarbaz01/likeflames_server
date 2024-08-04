@@ -12,6 +12,7 @@ const io = new Server(server, {
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
+const { globalRateLimiter } = require("./utils/rateLimiter");
 
 // Path to the uploads directory
 const uploadsDir = path.join(__dirname, "uploads");
@@ -24,6 +25,8 @@ if (!fs.existsSync(uploadsDir)) {
 // Socket Configuration
 const { mySockets } = require("./utils/sockets");
 mySockets({ io });
+
+app.use(globalRateLimiter);
 
 // Use cors middleware for regular HTTP routes
 app.use(

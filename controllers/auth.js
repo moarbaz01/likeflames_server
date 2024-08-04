@@ -10,6 +10,8 @@ const Otp = require("../models/otp.schema");
 const ResetToken = require("../models/reset_token.schema");
 const crypto = require("crypto");
 const Notifications = require("../models/notifications.schema");
+const { resetLinkTemplate } = require("../templates/resetLinkTemplate");
+const { otpTemplate } = require("../templates/otpTemplate");
 
 const generateAccessToken = (payload) => {
   const token = jwt.sign(payload, process.env.JWT_SECRET);
@@ -58,10 +60,7 @@ exports.sendOTP = async (req, res) => {
 
     // Send otp email
     const subject = "OTP for Registration";
-    const html = `<h3>Your OTP for registration is ${result}
-    </h3>
-    <p>Please do not share this OTP with anyone.</p>`;
-    await sendEmail(email, subject, html);
+    await sendEmail(email, subject, otpTemplate({ otp: result }));
 
     res.status(200).json({
       success: true,
@@ -432,13 +431,9 @@ exports.generateResetToken = async (req, res) => {
     // GENERATE A TOKEN
     const token = crypto.randomBytes(20).toString("hex");
     // CREATE A LINK FOR USER
-    const link = `http://localhost:5173/resetpassword?id=${user._id}&token=${token}`;
+    const link = `${process.env.CLIENT_URL}/resetpassword?id=${user._id}&token=${token}`;
     // SEND EMAIL TO THE USER
-    await sendEmail(
-      email,
-      "RESET PASSWORD",
-      `<a href="${link}">CLICK TO THE LINK</a>`
-    );
+    await sendEmail(email, "RESET PASSWORD", resetLinkTemplate({ link }));
 
     await ResetToken.create({
       email,
