@@ -22,8 +22,8 @@ const { limiter } = require("../utils/rateLimiter");
 
 // ROUTE
 Router.post("/signup", upload.single("profilePicture"), signup);
-Router.post("/login", limiter, login);
-Router.post("/otp", limiter, sendOTP);
+Router.post("/login", login);
+Router.post("/otp",sendOTP);
 Router.get("/logout", verifyUser, logout);
 Router.get("/user", verifyUser, fetchUser);
 Router.get("/user/:id", fetchUserById);
