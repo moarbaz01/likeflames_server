@@ -186,9 +186,11 @@ exports.login = async (req, res) => {
     user.accessToken = token;
     await user.save();
 
+    const { password: userPass, ...others } = user;
+
     res
       .cookie("token", token, { maxAge: 24 * 60 * 60 * 1000, httpOnly: true })
-      .json(sendResponse(true, "SUCCESSFULLY LOGGED IN", user, "user"));
+      .json(sendResponse(true, "SUCCESSFULLY LOGGED IN", others, "user"));
   } catch (error) {
     console.log(error);
     res

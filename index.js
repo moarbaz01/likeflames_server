@@ -5,14 +5,16 @@ const server = require("http").createServer(app);
 const { Server } = require("socket.io");
 const fs = require("fs");
 const path = require("path");
+
+require("dotenv").config();
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", process.env.CLIENT_URL], // Remove the trailing slash
+    origin: process.env.CLIENT_URL, // Remove the trailing slash
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   },
 });
-const { globalRateLimiter } = require("./utils/rateLimiter");
+console.log("CORS Origin:", process.env.CLIENT_URL);
 
 // Path to the uploads directory
 const uploadsDir = path.join(__dirname, "uploads");
@@ -26,16 +28,15 @@ if (!fs.existsSync(uploadsDir)) {
 const { mySockets } = require("./utils/sockets");
 mySockets({ io });
 
-app.use(globalRateLimiter);
-
 // Use cors middleware for regular HTTP routes
 app.use(
   cors({
-    origin: ["http://localhost:5173", process.env.CLIENT_URL], // Allow requests from this origin
+    origin: process.env.CLIENT_URL, // Allow requests from this origin
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+app.options("*", cors());
 
 const PORT = process.env.PORT || 5000;
 require("dotenv").config();
