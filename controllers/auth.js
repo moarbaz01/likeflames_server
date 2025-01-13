@@ -287,6 +287,8 @@ exports.fetchUserById = async (req, res) => {
         .json(false, "USER DETAILS NOT FOUND");
     }
 
+    console.log("id", id);
+
     const user = await User.findById(id)
       .populate({
         path: "posts",

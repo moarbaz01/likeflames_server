@@ -9,7 +9,7 @@ exports.verifyUser = async (req, res, next) => {
       (req.headers.authorization &&
         req.headers.authorization.replace("Bearer ", ""));
 
-    if (!token) {
+    if (token === undefined) {
       return res
         .status(statusCodes.NOT_FOUND)
         .json(sendResponse(false, "TOKEN EXPIRED || NOT FOUND"));
